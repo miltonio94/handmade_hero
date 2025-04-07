@@ -1,0 +1,94 @@
+#include <windows.h>
+
+
+LRESULT CALLBACK MainWindowCallback(
+  HWND Window,
+  UINT Message,
+  WPARAM WParam,
+  LPARAM LParam
+){
+    LRESULT Result = 0;
+    switch (Message) {
+        case WM_SIZE: {
+            OutputDebugString("Sizing\n");
+        } break;
+
+        case WM_DESTROY: {
+            OutputDebugString("Destroy\n");
+        } break;
+
+        case WM_CLOSE: {
+            PostQuitMessage(0);
+            OutputDebugString("Close\n");
+        } break;
+
+        case WM_ACTIVATEAPP: {
+            OutputDebugString("Active\n");
+        } break;
+
+        case WM_PAINT: {
+            PAINTSTRUCT Paint;
+            HDC  DeviceContext = BeginPaint(Window, &Paint);
+            int X = Paint.rcPaint.left;
+            int Y = Paint.rcPaint.top;
+            int Width = Paint.rcPaint.right - Paint.rcPaint.left;
+            int Height = Paint.rcPaint.bottom - Paint.rcPaint.top;
+            static DWORD Operation = WHITENESS;
+            PatBlt(DeviceContext, X, Y, Width, Height, Operation);
+            if(Operation == WHITENESS){
+                Operation = BLACKNESS;
+            } else {
+                Operation = WHITENESS;
+            }
+            EndPaint(Window, &Paint);
+        } break;
+
+        default: {
+            // OutputDebugString("Default\n");
+            Result = DefWindowProc(Window, Message, WParam, LParam);
+        } break;
+    }
+
+    return Result;
+}
+
+
+int WinMain(HINSTANCE Instance,
+                      HINSTANCE PrevInstance,
+                      LPSTR CmdLine,
+                      int ShowCode){
+    WNDCLASS WindowClass = {};
+
+        WindowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+        WindowClass.lpfnWndProc = MainWindowCallback;
+        WindowClass.hInstance = Instance;
+        // HICON     hIcon,
+        WindowClass.lpszClassName = "Handmade Hero";
+
+        if(RegisterClass(&WindowClass)){
+            HWND WindowHandle =
+                CreateWindowExA(0, WindowClass.lpszClassName, "Handmade hero",
+                                WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                                CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+                                CW_USEDEFAULT, 0, 0, Instance, 0 );
+
+            if(WindowHandle){
+                MSG Message;
+                for(;;){
+                    BOOL MessageResult = GetMessage(&Message, 0, 0, 0);
+                    if(MessageResult > 0){
+                        TranslateMessage(&Message);
+                        DispatchMessage(&Message);
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                // TODO: Logging
+            }
+        } else {
+            // TODO: Logging
+        };
+
+    return 0;
+}
