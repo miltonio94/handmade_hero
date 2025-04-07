@@ -1,7 +1,60 @@
 #include <windows.h>
 
+#define local_persist static
+#define global_variable static
+#define internal static
 
-LRESULT CALLBACK MainWindowCallback(
+global_variable bool Running;
+global_variable BITMAPINFO BitmapInfo;
+global_variable void *BitmapMemory;
+global_variable HBITMAP BitmapHandle;
+global_variable HDC BitmapDeviceContext;
+
+internal void Win32ResizeDIBSection(int Width, int Height){
+    // TODO: MAKE BETTER
+
+    if(BitmapHandle){
+        DeleteObject(BitmapHandle);
+    }
+
+    if(!BitmapDeviceContext){
+        // Should this be recreated in certain context
+        BitmapDeviceContext = CreateCompatibleDC(0);
+    }
+
+    BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader) ;
+    BitmapInfo.bmiHeader.biWidth = Width;
+    BitmapInfo.bmiHeader.biHeight = Height;
+    BitmapInfo.bmiHeader.biPlanes = 1;
+    BitmapInfo.bmiHeader.biBitCount = 32;
+    BitmapInfo.bmiHeader.biCompression = BI_RGB;
+    BitmapInfo.bmiHeader.biSizeImage = 0;
+    BitmapInfo.bmiHeader.biXPelsPerMeter = 0;
+    BitmapInfo.bmiHeader.biYPelsPerMeter = 0;
+    BitmapInfo.bmiHeader.biClrUsed = 0;
+    BitmapInfo.bmiHeader.biClrImportant = 0;
+
+
+    BitmapHandle = CreateDIBSection(BitmapDeviceContext,
+                     &BitmapInfo,
+                     DIB_RGB_COLORS,
+                     &BitmapMemory,
+                     0, 0);
+
+}
+
+internal void Win32UpdateWindow(HDC DeviceContext, int X, int Y, int Width, int Height){
+    StretchDIBits(DeviceContext,
+                  X, Y, Width, Height, // src
+                  X, Y, Width, Height, // dest
+                  &BitmapMemory,
+                  &BitmapInfo,
+                  DIB_RGB_COLORS, // Colour type, either pallet or RGB, in this case RGB
+                  SRCCOPY); // hows to rasterise when upscalling, we just want to copy
+
+}
+
+LRESULT CALLBACK Win32MainWindowCallback(
   HWND Window,
   UINT Message,
   WPARAM WParam,
@@ -10,15 +63,22 @@ LRESULT CALLBACK MainWindowCallback(
     LRESULT Result = 0;
     switch (Message) {
         case WM_SIZE: {
+            RECT ClientRect;
+            GetClientRect(Window, &ClientRect);
+            int Width = ClientRect.right - ClientRect.left;
+            int Height = ClientRect.bottom - ClientRect.top;
+            Win32ResizeDIBSection(Width, Height);
             OutputDebugString("Sizing\n");
         } break;
 
         case WM_DESTROY: {
-            OutputDebugString("Destroy\n");
+            // TODO Handle this with an error
+            Running = false;
         } break;
 
         case WM_CLOSE: {
-            PostQuitMessage(0);
+            // TODO Handle with message
+            Running = false;
             OutputDebugString("Close\n");
         } break;
 
@@ -33,13 +93,7 @@ LRESULT CALLBACK MainWindowCallback(
             int Y = Paint.rcPaint.top;
             int Width = Paint.rcPaint.right - Paint.rcPaint.left;
             int Height = Paint.rcPaint.bottom - Paint.rcPaint.top;
-            static DWORD Operation = WHITENESS;
-            PatBlt(DeviceContext, X, Y, Width, Height, Operation);
-            if(Operation == WHITENESS){
-                Operation = BLACKNESS;
-            } else {
-                Operation = WHITENESS;
-            }
+            Win32UpdateWindow(DeviceContext, X, Y, Width, Height);
             EndPaint(Window, &Paint);
         } break;
 
@@ -60,7 +114,7 @@ int WinMain(HINSTANCE Instance,
     WNDCLASS WindowClass = {};
 
         WindowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
-        WindowClass.lpfnWndProc = MainWindowCallback;
+        WindowClass.lpfnWndProc = Win32MainWindowCallback;
         WindowClass.hInstance = Instance;
         // HICON     hIcon,
         WindowClass.lpszClassName = "Handmade Hero";
@@ -74,7 +128,8 @@ int WinMain(HINSTANCE Instance,
 
             if(WindowHandle){
                 MSG Message;
-                for(;;){
+                Running = true;
+                while(Running){
                     BOOL MessageResult = GetMessage(&Message, 0, 0, 0);
                     if(MessageResult > 0){
                         TranslateMessage(&Message);
