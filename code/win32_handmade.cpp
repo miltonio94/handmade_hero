@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <windef.h> // including as I'm using my personal emacs config on WLS and this removes a lot of the squigly reds when .ccls is configured properly
 #include <xinput.h>
 #include <dsound.h>
 #include <math.h>
