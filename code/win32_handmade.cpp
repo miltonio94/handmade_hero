@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <xinput.h>
 #include <dsound.h>
 #include <math.h>
@@ -372,6 +373,10 @@ Win32FillSoundBuffer(win32_sound_output *SoundBuffer, DWORD ByteToLock, DWORD By
 int WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine,
             int ShowCode) {
 
+    LARGE_INTEGER PerfCountFrequencyResult;
+    QueryPerformanceFrequency(&PerfCountFrequencyResult);
+    uint64 PerfCountFrequency = PerfCountFrequencyResult.QuadPart;
+
     Win32LoadXInput();
 
     WNDCLASS WindowClass = {};
@@ -390,8 +395,8 @@ int WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine,
                                       CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
                                       CW_USEDEFAULT, 0, 0, Instance, 0);
 
-        if (Window) {
 
+        if (Window) {
             HDC DeviceContext = GetDC(Window);
 
             // GRAPHICS TEST
@@ -414,7 +419,15 @@ int WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine,
 
             GlobalRunning = true;
 
+            LARGE_INTEGER LastCounter;
+            QueryPerformanceCounter(&LastCounter);
+
+            int64 LastCycleCount =  __rdtsc();
+
             while (GlobalRunning) {
+                LARGE_INTEGER BeginCounter;
+                QueryPerformanceCounter(&BeginCounter);
+
                 MSG Message;
                 while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
                     if (Message.message == WM_QUIT) {
@@ -513,7 +526,26 @@ int WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine,
                 win32_window_dimension Dimension = Win32GetWindowDimension(Window);
                 Win32CopyBufferToWindow(&GlobalBackbuffer, DeviceContext,
                                         Dimension.Width, Dimension.Height);
-                //++XOffset;
+
+                LARGE_INTEGER EndCounter;
+                QueryPerformanceCounter(&EndCounter);
+
+                // TODO: Display value here
+                int64 EndCycleCount =  __rdtsc();
+                int64 CyclesEllapsed = EndCycleCount - LastCycleCount;
+
+                int64 CounterEllapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+                real32 MSPerFrame = (real32)((1000.0f * (real32)CounterEllapsed ) / (real32)PerfCountFrequency);
+                real32 FPS = (real32)PerfCountFrequency / (real32)CounterEllapsed;
+                real32 MCPF = (real32) ((real32)CyclesEllapsed / (1000.0f * 1000.0f)); // Mega cycles per frame
+
+                char Buffer[256];
+                sprintf(Buffer, "%.02fms/f, %.02ff/s, %.02fmc/f\n", MSPerFrame, FPS, MCPF);
+                OutputDebugStringA(Buffer);
+
+
+                LastCycleCount = EndCycleCount;
+                LastCounter = EndCounter;
             }
         } else {
             // TODO: Logging
