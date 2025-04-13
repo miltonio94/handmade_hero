@@ -1,0 +1,12 @@
+IndentWidth: 4
+AlignAfterOpenBracket: true
+AlignOperands: OAS_AlignAfterOperator
+AlignTrailingComments:
+    Kind: TCAS_Always
+    OverEmptyLines: 4
+AllowShortBlocksOnASingleLine: SBS_Never
+AllowShortEnumsOnASingleLine: true
+ColumnLimit: 90
+IndentCaseLabels: true
+SpaceBeforeCaseColon: false
+UseTabStyle: UT_Never
