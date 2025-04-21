@@ -58,6 +58,69 @@ global_variable x_input_set_state *XInputSetState_ = XInputSetStateStub;
 #define XInputGetState XInputGetState_
 #define XInputSetState XInputSetState_
 
+internal debug_read_file_result DEBUGPlatformReadEntireFile(char *FileName) {
+    debug_read_file_result Result = {};
+
+    HANDLE FileHandle =
+        CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    if (FileHandle != INVALID_HANDLE_VALUE) {
+
+        LARGE_INTEGER FileSize;
+        if (GetFileSizeEx(FileHandle, &FileSize)) {
+            Assert(FileSize.QuadPart <= 0xffffffff);
+            Result.ContentsSize = SafeTruncateUInt64(FileSize.QuadPart);
+            Result.Contents = VirtualAlloc(0, Result.ContentsSize,
+                                           MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+            if (Result.Contents) {
+                DWORD BytesRead;
+                if (ReadFile(FileHandle, Result.Contents, Result.ContentsSize, &BytesRead,
+                             0) &&
+                    (Result.ContentsSize == BytesRead)) {
+                    // NOTE: Read Successfully
+                } else {
+                    DEBUGPlatformFreeFileMemory(Result.Contents);
+                    Result.Contents = 0;
+                }
+            } else {
+                // TODO Log
+            }
+        } else {
+            // TODO Log
+        }
+
+        CloseHandle(FileHandle);
+    } else {
+        // TODO Log
+    }
+    return Result;
+}
+internal void DEBUGPlatformFreeFileMemory(void *BitmapMemory) {
+    VirtualFree(BitmapMemory, 0, MEM_RELEASE);
+}
+
+internal bool32 DEBUGPlatformWriteEntireFile(char *FileName, uint32 MemorySize,
+                                             void *Memory) {
+
+    bool32 Result = false;
+
+    HANDLE FileHandle = CreateFileA(FileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    if (FileHandle != INVALID_HANDLE_VALUE) {
+
+        DWORD BytesWritten;
+        if (WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0)) {
+            // NOTE: Read Successfully
+            Result = (MemorySize == BytesWritten);
+        } else {
+            // TODO Log
+        }
+
+        CloseHandle(FileHandle);
+    } else {
+        // TODO Log
+    }
+    return Result;
+}
+
 internal void Win32LoadXInput() {
     // TODO: Test on Windows 8
     HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
@@ -385,13 +448,22 @@ int WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine, int ShowC
                 (int16 *)VirtualAlloc(0, SoundOutput.SecondaryBufferSize,
                                       MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
+#if HANDMADE_INTERNAL
+            LPVOID BaseAddress = (LPVOID)Terabytes((uint64)2);
+#else
+            LPVOID BaseAddress = 0;
+#endif
+
             game_memory GameMemory = {};
-            GameMemory.PermanentStorageSize = Megabytes((uint64)64);
-            GameMemory.PermanentStorage = VirtualAlloc(0, GameMemory.PermanentStorageSize,
-                                                       MEM_COMMIT, PAGE_READWRITE);
-            GameMemory.TransientStorageSize = Gigabytes((uint64)4);
-            GameMemory.TransientStorage = VirtualAlloc(0, GameMemory.TransientStorageSize,
-                                                       MEM_COMMIT, PAGE_READWRITE);
+            GameMemory.PermanentStorageSize = Megabytes(64);
+            GameMemory.TransientStorageSize = Gigabytes(4);
+            uint64 TotalSize =
+                GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
+
+            GameMemory.PermanentStorage = VirtualAlloc(
+                BaseAddress, TotalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            GameMemory.TransientStorage =
+                ((uint8 *)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
 
             if (Samples && GameMemory.PermanentStorage && GameMemory.TransientStorage) {
                 game_input Input[2] = {};
@@ -570,10 +642,10 @@ int WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine, int ShowC
                                            (1000.0f * 1000.0f)); // Mega cycles per frame
 
 #if 0
-        char Buffer[256];
-        sprintf(Buffer, "%.02fms/f, %.02ff/s, %.02fmc/f\n", MSPerFrame, FPS,
-                MCPF);
-        OutputDebugStringA(Buffer);
+                    char Buffer[256];
+                    sprintf(Buffer, "%.02fms/f, %.02ff/s, %.02fmc/f\n", MSPerFrame, FPS,
+                            MCPF);
+                    OutputDebugStringA(Buffer);
 #endif
 
                     LastCycleCount = EndCycleCount;

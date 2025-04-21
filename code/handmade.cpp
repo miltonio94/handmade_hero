@@ -42,8 +42,18 @@ internal void GameOutputSound(game_sound_output_buffer *SoundBuffer, int ToneHz)
 internal void GameUpdateAndRender(game_memory *Memory, game_input *Input,
                                   game_offscreen_buffer *Buffer,
                                   game_sound_output_buffer *SoundBuffer) {
+    Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
+
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     if (!Memory->IsInitialized) {
+        char *FileName = __FILE__;
+        debug_read_file_result File = DEBUGPlatformReadEntireFile(FileName);
+        if (File.Contents) {
+            DEBUGPlatformWriteEntireFile("w:/data/test.out", File.ContentsSize,
+                                         File.Contents);
+            DEBUGPlatformFreeFileMemory(File.Contents);
+        }
+
         GameState->XOffset = 0;
         GameState->YOffset = 0;
         GameState->ToneHz = 256;
