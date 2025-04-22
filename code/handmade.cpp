@@ -12,9 +12,11 @@ internal void RenderGradient(game_offscreen_buffer *Buffer, int XOffset, int YOf
             LITTLE ENDIAN ARCHITECTURE
             0xBBGGRRxx
             */
-            uint8 Blue = ((uint8)X) + XOffset;
-            uint8 Green = (uint8)Y + YOffset;
-            uint8 Red = (((uint8)X + (uint8)XOffset) * ((uint8)Y + (uint8)YOffset)) % 255;
+            uint8 Blue = (uint8)(((uint8)X) + XOffset);
+            uint8 Green = (uint8)((uint8)Y + YOffset);
+            uint8 Red =
+                (uint8)((((uint8)X + (uint8)XOffset) * ((uint8)Y + (uint8)YOffset)) %
+                        255);
 
             *Pixel = ((Red << 16) | (Green << 8) | Blue);
             ++Pixel;
@@ -64,8 +66,8 @@ internal void GameUpdateAndRender(game_memory *Memory, game_input *Input,
     game_controller_input *Input0 = &Input->Controllers[0];
     if (Input0->IsAnalog) {
         // Tune to analog movement
-        GameState->ToneHz = 256 + (int)(128.0f * (Input0->EndX));
-        GameState->YOffset += (int)4.0f * (Input0->EndY);
+        GameState->ToneHz = 256 + (int)(128.0f * Input0->EndX);
+        GameState->YOffset += (int)(4.0f * (Input0->EndY));
     } else {
         // Tune to digital movement
     }

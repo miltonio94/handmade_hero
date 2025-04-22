@@ -283,7 +283,8 @@ LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message, WPARAM WPara
         case WM_SYSKEYUP:
         case WM_KEYDOWN:
         case WM_KEYUP: {
-            uint32 VKCode = WParam;
+            Assert(!"dispatch code hahah");
+            uint32 VKCode = (uint32)WParam;
             bool32 WasDown = (LParam & (1 << 30)) != 0;
             bool32 IsDown = ((LParam & (1 << 31)) == 0);
 
@@ -356,8 +357,7 @@ internal void Win32ClearSoundBuffer(win32_sound_output *SoundOutput) {
         for (ByteIndex = 0; ByteIndex < Region2Size; ++ByteIndex) {
             *DestSamples++ = 0;
         }
-        HRESULT UnllockStatus =
-            GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
+        GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
     }
 }
 
@@ -401,6 +401,68 @@ internal void Win32ProcessXInputDigitalButton(DWORD XInputButtonState,
     NewState->HalfTransitionCount = (OldState->EndedDown != NewState->EndedDown) ? 1 : 0;
 }
 
+internal void Win32ProcessKeyboardMessage(game_button_state *NewState, bool32 IsDown) {
+    NewState->EndedDown = IsDown;
+    ++NewState->HalfTransitionCount;
+}
+
+internal void Win32ProcessPendingMessages(game_controller_input *KeyboardController) {
+    MSG Message;
+    while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
+        switch (Message.message) {
+            case WM_QUIT: {
+
+                GlobalRunning = false;
+            } break;
+
+            case WM_SYSKEYDOWN:
+            case WM_SYSKEYUP:
+            case WM_KEYDOWN:
+            case WM_KEYUP: {
+                uint32 VKCode = (uint32)Message.wParam;
+                bool32 WasDown = (Message.lParam & (1 << 30)) != 0;
+                bool32 IsDown = ((Message.lParam & (1 << 31)) == 0);
+                if (WasDown != IsDown) {
+                    if (VKCode == 'W') {
+                    } else if (VKCode == 'A') {
+                    } else if (VKCode == 'S') {
+                    } else if (VKCode == 'D') {
+                    } else if (VKCode == 'Q') {
+
+                        Win32ProcessKeyboardMessage(&KeyboardController->LeftShoulder,
+                                                    IsDown);
+                    } else if (VKCode == 'E') {
+
+                        Win32ProcessKeyboardMessage(&KeyboardController->RightShoulder,
+                                                    IsDown);
+                    } else if (VKCode == VK_UP) {
+
+                        Win32ProcessKeyboardMessage(&KeyboardController->Up, IsDown);
+                    } else if (VKCode == VK_DOWN) {
+                        Win32ProcessKeyboardMessage(&KeyboardController->Down, IsDown);
+                    } else if (VKCode == VK_LEFT) {
+                        Win32ProcessKeyboardMessage(&KeyboardController->Left, IsDown);
+                    } else if (VKCode == VK_RIGHT) {
+                        Win32ProcessKeyboardMessage(&KeyboardController->Right, IsDown);
+                    } else if (VKCode == VK_ESCAPE) {
+                        GlobalRunning = false;
+                    } else if (VKCode == VK_SPACE) {
+                    }
+
+                    bool32 AltKeyWasDown = (Message.lParam & (1 << 29));
+                    if ((VKCode == VK_F4) && AltKeyWasDown) {
+                        GlobalRunning = false;
+                    }
+                }
+            } break;
+            default: {
+                TranslateMessage(&Message);
+                DispatchMessageA(&Message);
+            }
+        }
+    }
+}
+
 int WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine, int ShowCode) {
     LARGE_INTEGER PerfCountFrequencyResult;
     QueryPerformanceFrequency(&PerfCountFrequencyResult);
@@ -425,10 +487,6 @@ int WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine, int ShowC
 
         if (Window) {
             HDC DeviceContext = GetDC(Window);
-
-            // TODO: Delete these
-            int XOffset = 0;
-            int YOffset = 0;
 
             win32_sound_output SoundOutput = {};
             SoundOutput.SamplesPerSeconds = 48000;
@@ -456,12 +514,12 @@ int WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine, int ShowC
 
             game_memory GameMemory = {};
             GameMemory.PermanentStorageSize = Megabytes(64);
-            GameMemory.TransientStorageSize = Gigabytes(4);
+            GameMemory.TransientStorageSize = Gigabytes(1);
             uint64 TotalSize =
                 GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
 
             GameMemory.PermanentStorage = VirtualAlloc(
-                BaseAddress, TotalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+                BaseAddress, (size_t)TotalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
             GameMemory.TransientStorage =
                 ((uint8 *)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
 
@@ -477,18 +535,14 @@ int WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine, int ShowC
                     LARGE_INTEGER BeginCounter;
                     QueryPerformanceCounter(&BeginCounter);
 
-                    MSG Message;
-                    while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
-                        if (Message.message == WM_QUIT) {
-                            GlobalRunning = false;
-                        }
+                    game_controller_input *KeyboardController = &NewInput->Controllers[0];
+                    game_controller_input ZeroController = {};
+                    *KeyboardController = ZeroController;
 
-                        TranslateMessage(&Message);
-                        DispatchMessageA(&Message);
-                    }
+                    Win32ProcessPendingMessages(KeyboardController);
 
                     // TODO Should this be polled more often
-                    int MaxControllerCount = XUSER_MAX_COUNT;
+                    DWORD MaxControllerCount = XUSER_MAX_COUNT;
                     if (MaxControllerCount < ArrayCount(NewInput->Controllers)) {
                         MaxControllerCount = ArrayCount(NewInput->Controllers);
                     }
