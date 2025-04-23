@@ -1,8 +1,13 @@
+// -*- lsst-c++ -*-
+
 #include "handmade.h"
-#include "HandmadeDef.h"
+
 #include <math.h>
 
-internal void RenderGradient(game_offscreen_buffer *Buffer, int XOffset, int YOffset) {
+#include "HandmadeDef.h"
+
+internal void
+RenderGradient(game_offscreen_buffer *Buffer, int XOffset, int YOffset) {
     uint8 *Row = (uint8 *)Buffer->Memory;
 
     for (int Y = 0; Y < Buffer->Height; ++Y) {
@@ -14,9 +19,7 @@ internal void RenderGradient(game_offscreen_buffer *Buffer, int XOffset, int YOf
             */
             uint8 Blue = (uint8)(((uint8)X) + XOffset);
             uint8 Green = (uint8)((uint8)Y + YOffset);
-            uint8 Red =
-                (uint8)((((uint8)X + (uint8)XOffset) * ((uint8)Y + (uint8)YOffset)) %
-                        255);
+            uint8 Red = (uint8)((((uint8)X + (uint8)XOffset) * ((uint8)Y + (uint8)YOffset)) % 255);
 
             *Pixel = ((Red << 16) | (Green << 8) | Blue);
             ++Pixel;
@@ -25,34 +28,36 @@ internal void RenderGradient(game_offscreen_buffer *Buffer, int XOffset, int YOf
     }
 }
 
-internal void GameOutputSound(game_sound_output_buffer *SoundBuffer, int ToneHz) {
+internal void
+GameOutputSound(game_sound_output_buffer *SoundBuffer, int ToneHz) {
     local_persist real32 tSine;
-    int SampleIndex;
-    int16 ToneVolume = 3000;
-    int WavePeriod = SoundBuffer->SamplesPerSecond / ToneHz;
+    int                  SampleIndex;
+    int16                ToneVolume = 3000;
+    int                  WavePeriod = SoundBuffer->SamplesPerSecond / ToneHz;
 
     int16 *SampleOut = (int16 *)SoundBuffer->Samples;
     for (SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex) {
         real32 SineValue = sinf(tSine);
-        int16 SampleValue = (int16)(SineValue * ToneVolume);
+        int16  SampleValue = (int16)(SineValue * ToneVolume);
         *SampleOut++ = SampleValue;
         *SampleOut++ = SampleValue;
         tSine += ((2.0f * Pi32 * 1.0f) / (real32)WavePeriod);
     }
 }
 
-internal void GameUpdateAndRender(game_memory *Memory, game_input *Input,
-                                  game_offscreen_buffer *Buffer,
-                                  game_sound_output_buffer *SoundBuffer) {
+internal void
+GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer,
+                    game_sound_output_buffer *SoundBuffer) {
+    Assert((&Input->Controllers[0].HastaLaVistaBaby - &Input->Controllers[0].Buttons[0]) ==
+           (ArrayCount(Input->Controllers[0].Buttons)));
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     if (!Memory->IsInitialized) {
-        char *FileName = __FILE__;
+        char                  *FileName = __FILE__;
         debug_read_file_result File = DEBUGPlatformReadEntireFile(FileName);
         if (File.Contents) {
-            DEBUGPlatformWriteEntireFile("w:/data/test.out", File.ContentsSize,
-                                         File.Contents);
+            DEBUGPlatformWriteEntireFile("w:/data/test.out", File.ContentsSize, File.Contents);
             DEBUGPlatformFreeFileMemory(File.Contents);
         }
 
@@ -63,17 +68,20 @@ internal void GameUpdateAndRender(game_memory *Memory, game_input *Input,
         Memory->IsInitialized = true;
     }
 
-    game_controller_input *Input0 = &Input->Controllers[0];
-    if (Input0->IsAnalog) {
-        // Tune to analog movement
-        GameState->ToneHz = 256 + (int)(128.0f * Input0->EndX);
-        GameState->YOffset += (int)(4.0f * (Input0->EndY));
-    } else {
-        // Tune to digital movement
-    }
+    for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers);
+         ++ControllerIndex) {
+        game_controller_input *Controller = &Input->Controllers[ControllerIndex];
+        if (Controller->IsAnalog) {
+            // Tune to analog movement
+            GameState->ToneHz = 256 + (int)(128.0f * Controller->StickAverageX);
+            GameState->YOffset += (int)(4.0f * (Controller->StickAverageY));
+        } else {
+            // Tune to digital movement
+        }
 
-    if (Input0->Down.EndedDown) {
-        GameState->XOffset++;
+        if (Controller->ActionDown.EndedDown) {
+            GameState->XOffset++;
+        }
     }
 
     GameOutputSound(SoundBuffer, GameState->ToneHz);
