@@ -1,12 +1,41 @@
 IndentWidth: 4
-AlignAfterOpenBracket: true
-AlignOperands: OAS_AlignAfterOperator
-AlignTrailingComments:
-    Kind: TCAS_Always
-    OverEmptyLines: 4
-AllowShortBlocksOnASingleLine: SBS_Never
+AlignAfterOpenBracket: Align
+AlignOperands : AlignAfterOperator
+AllowShortBlocksOnASingleLine : Never
 AllowShortEnumsOnASingleLine: true
-ColumnLimit: 90
+ColumnLimit: 0
 IndentCaseLabels: true
+UseTab: Never
+AlignConsecutiveDeclarations: Consecutive
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 4
+BreakAfterReturnType: All
+BreakFunctionDefinitionParameters: false
+BreakBinaryOperations: RespectPrecedence
+AlignEscapedNewlines: Left
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+BreakBeforeBraces: Custom
+DerivePointerAlignment: true
+InsertBraces: true
+SortIncludes: Never
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceBeforeAssignmentOperators: true
 SpaceBeforeCaseColon: false
-UseTabStyle: UT_Never
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyParentheses: false
+BraceWrapping:
+    AfterEnum: false
+    AfterStruct: false
+    AfterCaseLabel: false
+    AfterNamespace: false
+    AfterExternBlock: false
+    AfterUnion: false
+    BeforeWhile: false
+    AfterClass: true
+    AfterFunction: true
+    SplitEmptyFunction: true
+    SplitEmptyRecord: true
+    SplitEmptyNamespace: true

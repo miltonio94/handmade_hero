@@ -34,9 +34,9 @@ DEBUGPlatformWriteEntireFile(char *Filename, uint32 MemorySize, void *Memory);
 #endif
 
 #if HANDMADE_SLOW
-#define Assert(Expression)                                                                         \
-    if (!(Expression)) {                                                                           \
-        *(int *)0 = 0;                                                                             \
+#define Assert(Expression) \
+    if (!(Expression)) {   \
+        *(int *)0 = 0;     \
     }
 #else
 #define Assert(Expression)
@@ -49,7 +49,8 @@ DEBUGPlatformWriteEntireFile(char *Filename, uint32 MemorySize, void *Memory);
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 inline uint32
-SafeTruncateUInt64(uint64 value) {
+SafeTruncateUInt64(uint64 value)
+{
     Assert(value <= 0xffffffff);
     return (uint32)value;
 }
@@ -114,7 +115,8 @@ struct game_input {
 };
 
 inline game_controller_input *
-GetController(game_input *Input, uint32 ControllerIndex) {
+GetController(game_input *Input, uint32 ControllerIndex)
+{
     Assert(ControllerIndex < ArrayCount(Input->Controllers));
     return &Input->Controllers[ControllerIndex];
 }
